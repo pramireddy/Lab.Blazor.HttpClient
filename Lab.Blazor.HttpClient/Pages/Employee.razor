@@ -1,0 +1,136 @@
+﻿@page "/employee"
+
+<PageTitle>Employee</PageTitle>
+
+@using Lab.Blazor.HttpClient.Data
+@using Microsoft.Extensions.FileProviders
+@using System.Text.Json
+@using System.Timers
+@inject IEmployeeService EmployeeService
+
+<h1>Employee details</h1>
+
+<div class="container">
+    <div class="row">
+        <div class="col-3">
+            <form>
+                <div class="form-row">
+                    <label for="searchText">Search Text</label>
+                    <input type="text" class="form-control mb-2" id="searchText" @bind="searchText" placeholder="search text">
+                </div>
+                <div class="form-row">
+                    <label for="returnCount">Return Count</label>
+                    <input type="text" class="form-control mb-2" id="returnCount" @bind="returnCount" placeholder="return count (default 20)">
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col">
+
+            <button class="btn btn-primary" @onclick="FetchEmployeesLive" style="margin-bottom: 2em">Live - Data Lake</button>
+
+            @if (liveTimer != null)
+            {
+                <h3> Response Time(mm) : @liveResponseCounter </h3>
+            }
+            @if (employeesLive != null)
+            {
+                <div class="card">
+                    <div class="card-body">
+                        <pre>
+                            @(JsonSerializer.Serialize(employeesLive, new JsonSerializerOptions() { WriteIndented = true }))
+                                </pre>
+                    </div>
+                </div>
+            }
+        </div>
+        <div class="col">
+
+            <button class="btn btn-primary" @onclick="FetchEmployeesCached" style="margin-bottom: 2em">Cache - SQL Server</button>
+
+            @if (cachedTimer != null)
+            {
+                <h3> Response Time(mm) : @cachedResponseCounter</h3>
+            }
+            @if (employeesCached != null)
+            {
+                <div class="card">
+                    <div class="card-body">
+                        <pre>
+                            @(JsonSerializer.Serialize(employeesCached, new JsonSerializerOptions() { WriteIndented = true }))
+                                </pre>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+
+@code {
+
+    private Lab.Blazor.HttpClient.Data.Employee[] employeesLive;
+
+    private Lab.Blazor.HttpClient.Data.Employee[] employeesCached;
+
+    private int liveResponseCounter = 0;
+
+    private Timer liveTimer;
+
+    private int cachedResponseCounter = 0;
+
+    private Timer cachedTimer;
+
+    private string searchText;
+    private int returnCount = 20;
+
+    private async Task FetchEmployeesLive()
+    {
+        employeesLive = null;
+        SetLiveTimer();
+        employeesLive = await EmployeeService.GetLiveEmployees();
+        liveTimer.Stop();
+        liveTimer.Dispose();
+    }
+
+    private async Task FetchEmployeesCached()
+    {
+        employeesCached = null;
+        SetCachedTimer();
+        employeesCached = await EmployeeService.GetCachedEmployees();
+        cachedTimer.Stop();
+        cachedTimer.Dispose();
+    }
+
+    private void SetLiveTimer()
+    {
+        liveResponseCounter = 0;
+        liveTimer = new Timer(1);
+        liveTimer.Elapsed += TimerOnLiveTimeElapsed;
+        liveTimer.AutoReset = true;
+        liveTimer.Enabled = true;
+    }
+
+    private void TimerOnLiveTimeElapsed(object? sender, ElapsedEventArgs e)
+    {
+        liveResponseCounter++;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void SetCachedTimer()
+    {
+        cachedResponseCounter = 0;
+        cachedTimer = new Timer(1);
+        cachedTimer.Elapsed += TimerOnCachedTimeElapsed;
+        cachedTimer.AutoReset = true;
+        cachedTimer.Enabled = true;
+    }
+
+    private void TimerOnCachedTimeElapsed(object? sender, ElapsedEventArgs e)
+    {
+        cachedResponseCounter++;
+        InvokeAsync(StateHasChanged);
+    }
+
+}
